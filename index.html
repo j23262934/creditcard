@@ -56,33 +56,10 @@
         .highlight { color: #546e7a; font-weight: 700; background: #eceff1; padding: 0 4px; border-radius: 4px; }
         strong { font-weight: 700; color: #263238; }
 
-        /* --- 修正後的表格換行規則：取消自動換行 --- */
-        .remark-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin: 10px 0; 
-            font-size: 13px;
-            table-layout: auto; /* 改回自動佈局 */
-        }
-        .remark-table td { 
-            border: 1px solid #f0f0f0; 
-            padding: 10px 12px; 
-            color: var(--secondary-text); 
-            line-height: 1.5;
-            vertical-align: top;
-        }
-        .remark-table td:first-child {
-            background-color: #fafafa;
-            color: #546e7a;
-            font-weight: 500;
-            white-space: nowrap; /* 強制不自動換行 */
-            width: 1%; /* 寬度自動縮至最小 */
-            padding: 10px 12px;
-        }
-        .remark-table td:last-child {
-            word-break: break-word; /* 只有右側內容會自動換行 */
-        }
-        /* ---------------------- */
+        .remark-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; table-layout: auto; }
+        .remark-table td { border: 1px solid #f0f0f0; padding: 10px 12px; color: var(--secondary-text); line-height: 1.5; vertical-align: top; }
+        .remark-table td:first-child { background-color: #fafafa; color: #546e7a; font-weight: 500; white-space: nowrap; width: 1%; padding: 10px 12px; }
+        .remark-table td:last-child { word-break: break-word; }
 
         .plain-remark { font-size: 13px; color: var(--secondary-text); line-height: 1.7; white-space: pre-wrap; margin-bottom: 5px; }
 
@@ -99,17 +76,20 @@
         label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: #78909c; }
         input, textarea { width: 100%; padding: 14px; border: 1.5px solid #eee; border-radius: 12px; font-size: 14px; background: #fafafa; outline: none; }
         
+        /* 備註編輯區塊與排序按鈕 */
+        .benefit-input-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 15px; position: relative; border: 1px dashed #cfd8dc; }
+        .benefit-ctrls { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; align-items: center; }
+        .btn-move, .btn-remove-benefit { background: white; border: 1px solid #eee; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; color: #90a4ae; transition: 0.2s; }
+        .btn-move:hover { background: #eceff1; color: #455a64; }
+        .btn-remove-benefit:hover { background: #fff1f1; color: #fa5252; }
+
         .selector-container { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
         .color-option { width: 34px; height: 34px; border-radius: 10px; cursor: pointer; border: 3px solid transparent; }
         .color-option.active { border-color: #455a64; transform: scale(1.1); }
-        
         .icon-option { width: 44px; height: 44px; border-radius: 10px; cursor: pointer; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; background: #fdfdfd; }
         .icon-option svg { fill: #b0bec5; width: 24px; height: 24px; }
         .icon-option.active { border-color: #455a64; background: #eceff1; }
         .icon-option.active svg { fill: #455a64; }
-
-        .benefit-input-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 15px; position: relative; border: 1px dashed #cfd8dc; }
-        .btn-remove-benefit { position: absolute; top: 10px; right: 10px; color: #b0bec5; background: none; border: none; font-size: 18px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -203,11 +183,8 @@
 
         function parseHighlight(text) {
             if (!text) return '';
-            // 加入支援 "|" 與 "<br>" 手動換行
             let formatted = text.replace(/\|/g, '<br>');
-            // 處理粗體 **文字**
             formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // 處理高亮 [文字]
             formatted = formatted.replace(/\[(.*?)\]/g, '<span class="highlight">$1</span>');
             return formatted;
         }
@@ -317,10 +294,32 @@
             });
         }
 
+        // 新增/調整備註項目的位置邏輯
+        function moveBenefit(btn, direction) {
+            const row = btn.closest('.benefit-input-row');
+            if (direction === -1) { // 上移
+                if (row.previousElementSibling) {
+                    row.parentNode.insertBefore(row, row.previousElementSibling);
+                }
+            } else { // 下移
+                if (row.nextElementSibling) {
+                    row.parentNode.insertBefore(row.nextElementSibling, row);
+                }
+            }
+        }
+
         function addBenefitField(t = '', r = '') {
             const d = document.createElement('div');
             d.className = 'benefit-input-row';
-            d.innerHTML = `<input type="text" class="bt" placeholder="標題" value="${t}" required><textarea class="br" placeholder="使用 **粗體**、[高亮]、| 換行符號">${r}</textarea><button type="button" class="btn-remove-benefit" onclick="this.parentElement.remove()">✕</button>`;
+            d.innerHTML = `
+                <div class="benefit-ctrls">
+                    <button type="button" class="btn-move" onclick="moveBenefit(this, -1)">↑</button>
+                    <button type="button" class="btn-move" onclick="moveBenefit(this, 1)">↓</button>
+                    <button type="button" class="btn-remove-benefit" onclick="this.closest('.benefit-input-row').remove()">✕</button>
+                </div>
+                <input type="text" class="bt" placeholder="標題" value="${t}" required>
+                <textarea class="br" placeholder="使用 **粗體**、[高亮]、| 換行符號">${r}</textarea>
+            `;
             document.getElementById('benefitContainer').appendChild(d);
         }
 
