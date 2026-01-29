@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>卡-信用卡總覽</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    
+    <!-- 引入 Cropper.js CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    
     <style>
         :root {
             --bg-color: #fcfcfc;
@@ -89,6 +93,13 @@
         .icon-option svg { fill: #b0bec5; width: 24px; height: 24px; }
         .icon-option.active { border-color: #455a64; background: #eceff1; }
         .icon-option.active svg { fill: #455a64; }
+
+        /* 裁切視窗專用樣式 */
+        .crop-area { width: 100%; max-height: 400px; margin-bottom: 20px; overflow: hidden; background: #eee; }
+        #cropImage { max-width: 100%; display: block; }
+        .file-upload-wrapper { display: flex; gap: 10px; align-items: center; margin-top: 5px; }
+        .btn-upload { background: #eceff1; color: #455a64; flex: 1; text-align: center; }
+        .img-preview-box { width: 100px; height: 63px; border-radius: 8px; background-size: cover; background-position: center; border: 1px solid #ddd; display: none; }
     </style>
 </head>
 <body>
@@ -107,7 +118,7 @@
         <div class="details-header">
             <div>
                 <h3 id="detailCardName" style="font-weight: 700; font-size: 20px;"></h3>
-                <span id="detailCardDate" style="font-size: 12px; color: #727272; font-weight: 500;"></span>
+                <span id="detailCardDate" style="font-size: 12px; color: #383838; font-weight: 500;"></span>
             </div>
             <div style="display: flex;">
                 <button class="btn btn-edit" id="editBtn">編輯</button>
@@ -127,15 +138,22 @@
                 <input type="hidden" id="selectedIcon" value="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z">
                 
                 <div class="form-group"><label>卡片名稱 / 銀行</label><input type="text" id="cardName" required></div>
-                
-                <!-- 新增：優惠截止日期欄位 -->
                 <div class="form-group"><label>優惠截止日期</label><input type="date" id="expiryDate"></div>
                 
-                <div class="form-group"><label>卡片封面圖片 (URL)</label><input type="url" id="cardImage" placeholder="https://..."></div>
-                <div class="form-group"><label>選擇顏色</label><div class="selector-container" id="colorPicker"></div></div>
-                <div class="form-group"><label>選擇圖示</label><div class="selector-container" id="iconPicker"></div></div>
                 <div class="form-group">
-                    <label>優惠與備註 (支援 **粗體**、[高亮]、| 換行)</label>
+                    <label>卡片封面</label>
+                    <div class="file-upload-wrapper">
+                        <div id="imgPreview" class="img-preview-box"></div>
+                        <button type="button" class="btn btn-upload" onclick="document.getElementById('fileInput').click()">上傳圖片並裁切</button>
+                        <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="initCrop(this)">
+                    </div>
+                    <input type="url" id="cardImage" placeholder="或是貼上圖片網址 (URL)" style="margin-top:10px;">
+                </div>
+
+                <div class="form-group"><label>或 選擇背景顏色 (若無圖片)</label><div class="selector-container" id="colorPicker"></div></div>
+                <div class="form-group"><label>選擇圖示 (若無圖片)</label><div class="selector-container" id="iconPicker"></div></div>
+                <div class="form-group">
+                    <label>優惠與備註</label>
                     <div id="benefitContainer"></div>
                     <button type="button" class="btn" style="width:100%; margin-top:10px; font-size:12px; background:#eceff1;" onclick="addBenefitField()">+ 增加項目</button>
                 </div>
@@ -144,6 +162,21 @@
             </form>
         </div>
     </div>
+
+    <!-- 裁切彈窗 -->
+    <div id="cropModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2>調整圖片位置</h2>
+            <div class="crop-area">
+                <img id="cropImage" src="">
+            </div>
+            <button type="button" class="btn btn-save" onclick="applyCrop()">確定裁切</button>
+            <button type="button" class="btn" style="width:100%; background:none; color:#999" onclick="closeCropModal()">取消</button>
+        </div>
+    </div>
+
+    <!-- 引入 Cropper.js JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
     <script>
         const colors = ['#A8B69F', '#E2A9A9', '#9BB7D4', '#B8A9C9', '#DBC1AD', '#9ED2C6'];
@@ -157,7 +190,49 @@
         ];
 
         let cards = JSON.parse(localStorage.getItem('myCards')) || [];
-        const separator = '/';
+        let cropper = null;
+
+        // --- 圖片上傳裁切邏輯 ---
+        function initCrop(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('cropImage').src = e.target.result;
+                    document.getElementById('cropModal').style.display = 'flex';
+                    if (cropper) cropper.destroy();
+                    cropper = new Cropper(document.getElementById('cropImage'), {
+                        aspectRatio: 260 / 165,
+                        viewMode: 1,
+                        background: false
+                    });
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function applyCrop() {
+            const canvas = cropper.getCroppedCanvas({ width: 600 }); // 限制寬度避免 Base64 太大
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            document.getElementById('cardImage').value = dataUrl;
+            showImgPreview(dataUrl);
+            closeCropModal();
+        }
+
+        function showImgPreview(url) {
+            const box = document.getElementById('imgPreview');
+            if (url) {
+                box.style.backgroundImage = `url('${url}')`;
+                box.style.display = 'block';
+            } else {
+                box.style.display = 'none';
+            }
+        }
+
+        function closeCropModal() {
+            document.getElementById('cropModal').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+        }
+        // --- 結束裁切邏輯 ---
 
         function initSelectors() {
             const cp = document.getElementById('colorPicker');
@@ -204,7 +279,7 @@
                 }
             };
             lines.forEach(line => {
-                if (line.includes(separator)) currentTable.push(line.split(separator).map(c => c.trim()));
+                if (line.includes('/')) currentTable.push(line.split('/').map(c => c.trim()));
                 else { flush(); if (line.trim()) html += `<div class="plain-remark">${parseHighlight(line)}</div>`; }
             });
             flush(); return html;
@@ -255,15 +330,8 @@
         function showDetails(i) {
             const c = cards[i];
             document.getElementById('detailCardName').innerText = c.name;
-            
-            // 顯示優惠期限
             const dateEl = document.getElementById('detailCardDate');
-            if (c.expiryDate) {
-                dateEl.innerText = `優惠期限：${c.expiryDate}`;
-            } else {
-                dateEl.innerText = '';
-            }
-
+            dateEl.innerText = c.expiryDate ? `優惠期限：${c.expiryDate}` : '';
             document.getElementById('benefitDisplayList').innerHTML = (c.benefits || []).map(b => `
                 <div class="benefit-item"><span class="benefit-title">${parseHighlight(b.title)}</span>${formatRemark(b.remark)}</div>
             `).join('');
@@ -280,8 +348,9 @@
                 document.getElementById('modalTitle').innerText = 'Edit Card';
                 document.getElementById('editIndex').value = idx;
                 document.getElementById('cardName').value = c.name;
-                document.getElementById('expiryDate').value = c.expiryDate || ''; // 載入日期
+                document.getElementById('expiryDate').value = c.expiryDate || '';
                 document.getElementById('cardImage').value = c.image || '';
+                showImgPreview(c.image);
                 document.getElementById('selectedColor').value = c.color;
                 document.getElementById('selectedIcon').value = c.icon;
                 (c.benefits || []).forEach(b => addBenefitField(b.title, b.remark));
@@ -291,7 +360,7 @@
                 document.getElementById('editIndex').value = -1;
                 document.getElementById('selectedColor').value = colors[0];
                 document.getElementById('selectedIcon').value = icons[0].path;
-                document.getElementById('expiryDate').value = ''; // 重置日期
+                showImgPreview('');
                 addBenefitField();
             }
             updateSelectors(); m.style.display = 'flex';
@@ -309,15 +378,6 @@
             });
         }
 
-        function moveBenefit(btn, direction) {
-            const row = btn.closest('.benefit-input-row');
-            if (direction === -1) {
-                if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
-            } else {
-                if (row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row);
-            }
-        }
-
         function addBenefitField(t = '', r = '') {
             const d = document.createElement('div');
             d.className = 'benefit-input-row';
@@ -333,12 +393,21 @@
             document.getElementById('benefitContainer').appendChild(d);
         }
 
+        function moveBenefit(btn, direction) {
+            const row = btn.closest('.benefit-input-row');
+            if (direction === -1) {
+                if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
+            } else {
+                if (row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row);
+            }
+        }
+
         document.getElementById('cardForm').onsubmit = (e) => {
             e.preventDefault();
             const idx = parseInt(document.getElementById('editIndex').value);
             const data = {
                 name: document.getElementById('cardName').value,
-                expiryDate: document.getElementById('expiryDate').value, // 儲存日期
+                expiryDate: document.getElementById('expiryDate').value,
                 image: document.getElementById('cardImage').value,
                 color: document.getElementById('selectedColor').value,
                 icon: document.getElementById('selectedIcon').value,
@@ -358,31 +427,30 @@
         }
 
         function syncDataMenu() {
-            const choice = prompt("請選擇操作：\n1. 匯出備份 (複製字串)\n2. 匯入還原 (貼上字串)", "1");
+            const choice = prompt("1. 匯出備份\n2. 匯入還原", "1");
             if (choice === "1") {
                 const dataStr = btoa(encodeURIComponent(JSON.stringify(cards)));
-                const tempInput = document.createElement("textarea");
-                document.body.appendChild(tempInput);
-                tempInput.value = dataStr;
-                tempInput.select();
-                document.execCommand("copy");
-                document.body.removeChild(tempInput);
-                alert("備份字串已複製！");
+                navigator.clipboard.writeText(dataStr).then(() => alert("備份字串已複製！"));
             } else if (choice === "2") {
                 const input = prompt("請貼上備份字串：");
                 if (input) {
                     try {
                         const decodedData = JSON.parse(decodeURIComponent(atob(input)));
-                        if (Array.isArray(decodedData)) {
-                            cards = decodedData; saveAndRefresh(); alert("還原成功！");
-                        } else { throw new Error(); }
+                        if (Array.isArray(decodedData)) { cards = decodedData; saveAndRefresh(); alert("還原成功！"); }
                     } catch (e) { alert("無效字串。"); }
                 }
             }
         }
 
         document.getElementById('cardSlider').onscroll = () => { clearTimeout(window.st); window.st = setTimeout(updateState, 100); };
-        window.onclick = (e) => { if(e.target.className === 'modal') closeModal(); }
+        window.onclick = (e) => { 
+            if(e.target.id === 'cardModal') closeModal();
+            if(e.target.id === 'cropModal') closeCropModal();
+        }
+        
+        // 即時監測網址輸入
+        document.getElementById('cardImage').oninput = function() { showImgPreview(this.value); };
+
         initSelectors(); renderCards();
     </script>
 </body>
