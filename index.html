@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡-信用卡總覽</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #fcfcfc;
+            --primary-text: #3d4449;
+            --secondary-text: #8e979e;
+            --accent-color: #78909c;
+            --add-btn-bg: #455a64;       
+            --add-btn-text: #ffffff;
+            --add-btn-hover: #607d8b;
+            --backup-btn-bg: #eceff1;
+            --backup-btn-text: #607d8b;
+            --card-radius: 20px;         
+            --item-radius: 16px;         
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', 'Noto Sans TC', sans-serif; }
+
+        body { background-color: var(--bg-color); color: var(--primary-text); display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+
+        header { width: 100%; max-width: 500px; padding: 40px 25px 20px 25px; display: flex; justify-content: space-between; align-items: center; }
+        h1 { font-weight: 700; font-size: 26px; color: #263238; }
+        .header-btns { display: flex; gap: 8px; }
+
+        /* 卡片區域 */
+        .slider-container { width: 100%; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding: 20px 0 40px 0; gap: 20px; scrollbar-width: none; }
+        .slider-container::-webkit-scrollbar { display: none; }
+        .slider-container::before, .slider-container::after { content: ''; flex: 0 0 calc(50% - 130px); }
+
+        .cc-card {
+            flex: 0 0 260px; height: 165px; border-radius: var(--card-radius); position: relative; scroll-snap-align: center;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.06); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer; overflow: hidden; color: white; display: flex; flex-direction: column; justify-content: flex-end; padding: 22px;
+        }
+        .cc-card:not(.active) { transform: scale(0.85); opacity: 0.5; filter: blur(1px); }
+        .card-name-on-card { position: relative; z-index: 1; font-weight: 600; font-size: 18px; }
+
+        /* 詳細內容 */
+        .details-container { width: 100%; max-width: 450px; padding: 0 25px 50px 25px; opacity: 0; transform: translateY(20px); transition: 0.4s ease; }
+        .details-container.show { opacity: 1; transform: translateY(0); }
+        .details-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
+
+        /* 文字樣式強化 */
+        .benefit-item { background: white; padding: 20px; border-radius: var(--item-radius); margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f5f5f5; }
+        .benefit-title { display: block; font-weight: 600; margin-bottom: 8px; font-size: 15px; }
+        .highlight { color: #546e7a; font-weight: 700; background: #eceff1; padding: 0 4px; border-radius: 4px; }
+        strong { font-weight: 700; color: #263238; } /* 粗體文字顏色稍深一點 */
+
+        .remark-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+        .remark-table td { border: 1px solid #f0f0f0; padding: 8px; color: var(--secondary-text); }
+        .plain-remark { font-size: 13px; color: var(--secondary-text); line-height: 1.7; white-space: pre-wrap; }
+
+        /* 按鈕與彈窗 */
+        .btn { cursor: pointer; border: none; border-radius: 12px; padding: 12px 20px; font-size: 14px; font-weight: 600; transition: 0.3s; }
+        .btn-add-action { background-color: var(--add-btn-bg); color: var(--add-btn-text); }
+        .btn-backup { background-color: var(--backup-btn-bg); color: var(--backup-btn-text); }
+        .btn-edit { background: #f5f7f9; color: #607d8b; margin-right: 10px; }
+        .btn-delete { background: #fff1f1; color: #fa5252; }
+        .btn-save { background: var(--add-btn-bg); color: white; width: 100%; margin-top: 10px; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(38, 50, 56, 0.4); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: white; padding: 35px; border-radius: 28px; width: 92%; max-width: 450px; max-height: 85vh; overflow-y: auto; }
+        .form-group { margin-bottom: 22px; }
+        label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: #78909c; }
+        input, textarea { width: 100%; padding: 14px; border: 1.5px solid #eee; border-radius: 12px; font-size: 14px; background: #fafafa; outline: none; }
+        
+        .selector-container { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+        .color-option { width: 34px; height: 34px; border-radius: 10px; cursor: pointer; border: 3px solid transparent; }
+        .color-option.active { border-color: #455a64; transform: scale(1.1); }
+        
+        .icon-option { width: 44px; height: 44px; border-radius: 10px; cursor: pointer; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; background: #fdfdfd; }
+        .icon-option svg { fill: #b0bec5; width: 24px; height: 24px; }
+        .icon-option.active { border-color: #455a64; background: #eceff1; }
+        .icon-option.active svg { fill: #455a64; }
+
+        .benefit-input-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 15px; position: relative; border: 1px dashed #cfd8dc; }
+        .btn-remove-benefit { position: absolute; top: 10px; right: 10px; color: #b0bec5; background: none; border: none; font-size: 18px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Wallet</h1>
+        <div class="header-btns">
+            <button class="btn btn-backup" onclick="syncDataMenu()">同步</button>
+            <button class="btn btn-add-action" onclick="openModal()">+ Add</button>
+        </div>
+    </header>
+
+    <div class="slider-container" id="cardSlider"></div>
+
+    <div class="details-container" id="detailsArea">
+        <div class="details-header">
+            <div>
+                <h3 id="detailCardName" style="font-weight: 700; font-size: 20px;"></h3>
+                <span id="detailCardDate" style="font-size: 12px; color: var(--secondary-text);"></span>
+            </div>
+            <div style="display: flex;">
+                <button class="btn btn-edit" id="editBtn">編輯</button>
+                <button class="btn btn-delete" id="deleteBtn">刪除</button>
+            </div>
+        </div>
+        <div id="benefitDisplayList" class="benefit-list"></div>
+    </div>
+
+    <!-- 編輯彈窗 -->
+    <div id="cardModal" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">New Card</h2>
+            <form id="cardForm">
+                <input type="hidden" id="editIndex" value="-1">
+                <input type="hidden" id="selectedColor" value="#A8B69F">
+                <input type="hidden" id="selectedIcon" value="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z">
+                <div class="form-group"><label>卡片名稱 / 銀行</label><input type="text" id="cardName" required></div>
+                <div class="form-group"><label>選擇顏色</label><div class="selector-container" id="colorPicker"></div></div>
+                <div class="form-group"><label>選擇圖示</label><div class="selector-container" id="iconPicker"></div></div>
+                <div class="form-group">
+                    <label>優惠與備註 (支援 **粗體** 與 [高亮])</label>
+                    <div id="benefitContainer"></div>
+                    <button type="button" class="btn" style="width:100%; margin-top:10px; font-size:12px; background:#eceff1;" onclick="addBenefitField()">+ 增加項目</button>
+                </div>
+                <button type="submit" class="btn btn-save">儲存卡片</button>
+                <button type="button" class="btn" style="width:100%; background:none; color:#999" onclick="closeModal()">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const colors = ['#A8B69F', '#E2A9A9', '#9BB7D4', '#B8A9C9', '#DBC1AD', '#9ED2C6'];
+        // 圖示庫 (可以在這裡自由增減)
+        const icons = [
+            { name: 'Travel', path: 'M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z' },
+            { name: 'Shopping', path: 'M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z' },
+            { name: 'Food', path: 'M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z' },
+            { name: 'mrt', path: 'M6.19 20.23V19.5l1.5-1q-1.34 0-2.27-.93Q4.5 16.65 4.5 15.31V6q0-1.83 1.78-2.67T12 2.5q4.03 0 5.77 .81Q19.5 4.12 19.5 6v9.31q0 1.34-.93 2.27Q17.65 18.5 16.31 18.5l1.5 1v.73H6.19ZM6 10.5h12V6.77H6V10.5Zm10.31 1.5H6h12-1.69ZM12 15.81q.55 0 .93-.38t.38-.93q0-.55-.38-.93t-.93-.38q-.55 0-.93 .38t-.38 .93q0 .55 .38 .93t.93 .38ZM7.69 17h8.62q.72 0 1.21-.49t.49-1.2V13H6v3.31q0 .72 .49 1.21t1.2 .49ZM12 4q-2.45 0-3.87 .31-1.42 .31-1.86 .96h11.51q-.44-.65-1.85-.76-1.42-.21-3.93-.51ZM12 5.27h5.78-11.51H12Z' },
+            { name: 'Star', path: 'M8.85 16.83l3.15-1.9 3.15 1.93-.83-3.6 2.78-2.4-3.65-.33L12 7.13l-1.45 3.38-3.65.33 2.78 2.43-.83 3.58zM5.83 21l1.63-7.03L2 9.25l7.2-.63L12 2l2.8 6.63 7.2.63-5.45 4.73 1.63 7.03-6.18-3.73L5.83 21z' },
+            { name: 'earth', path: 'M12 21.5q-1.97 0-3.71-.75t-3.02-2.03q-1.28-1.28-2.03-3.02Q2.5 13.97 2.5 12q0-1.97.75-3.71t2.03-3.02q1.28-1.28 3.02-2.03Q10.03 2.5 12 2.5q1.97 0 3.71.75t3.02 2.03q1.28 1.28 2.03 3.02Q21.5 10.03 21.5 12q0 1.97-.75 3.71t-2.03 3.02q-1.28 1.28-3.02 2.03Q13.97 21.5 12 21.5Zm0-1.5q3.35 0 5.68-2.33t2.33-5.68q0-.18-.01-.36t-.02-.33q-.1 .7-.6 1.15t-1.22 .46h-2.27q-.76 0-1.3-.54t-.54-1.3v-.92h-2.35v-1.84q0-.76 .54-1.31t1.3 -1.54h .92v-.38q0-.65 .39-1.08t.95-.6q-.59 -.19-1.2 -.3Q12.65 4 12 4q-3.35 0-5.68 2.33t-2.33 5.68v .14q0 .07 .01 .14h 4.75q1.53 0 2.61 1.08t1.08 2.61v .93H9.67v2.74q.56 .17 1.14 .26Q11.39 20 12 20Z' }
+        ];
+
+        let cards = JSON.parse(localStorage.getItem('myCards')) || [];
+        const separator = '/';
+
+        function initSelectors() {
+            const cp = document.getElementById('colorPicker');
+            colors.forEach(c => {
+                const d = document.createElement('div');
+                d.className = 'color-option'; d.style.backgroundColor = c;
+                d.onclick = () => {
+                    document.getElementById('selectedColor').value = c;
+                    document.querySelectorAll('.color-option').forEach(el => el.classList.remove('active'));
+                    d.classList.add('active');
+                };
+                cp.appendChild(d);
+            });
+            const ip = document.getElementById('iconPicker');
+            icons.forEach(i => {
+                const d = document.createElement('div');
+                d.className = 'icon-option';
+                d.innerHTML = `<svg viewBox="0 0 24 24"><path d="${i.path}" /></svg>`;
+                d.onclick = () => {
+                    document.getElementById('selectedIcon').value = i.path;
+                    document.querySelectorAll('.icon-option').forEach(el => el.classList.remove('active'));
+                    d.classList.add('active');
+                };
+                ip.appendChild(d);
+            });
+        }
+
+        // --- 重點：解析粗體與高亮邏輯 ---
+        function parseHighlight(text) {
+            if (!text) return '';
+            // 1. 處理粗體 **文字** -> <strong>文字</strong>
+            let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            // 2. 處理高亮 [文字] -> <span class="highlight">文字</span>
+            formatted = formatted.replace(/\[(.*?)\]/g, '<span class="highlight">$1</span>');
+            return formatted;
+        }
+
+        function formatRemark(text) {
+            const lines = text.trim().split('\n');
+            let html = '', currentTable = [];
+            const flush = () => {
+                if (currentTable.length) {
+                    html += '<table class="remark-table">';
+                    currentTable.forEach(row => { html += '<tr>' + row.map(c => `<td>${parseHighlight(c)}</td>`).join('') + '</tr>'; });
+                    html += '</table>'; currentTable = [];
+                }
+            };
+            lines.forEach(line => {
+                if (line.includes(separator)) currentTable.push(line.split(separator).map(c => c.trim()));
+                else { flush(); if (line.trim()) html += `<div class="plain-remark">${parseHighlight(line)}</div>`; }
+            });
+            flush(); return html;
+        }
+
+        // --- 卡片渲染邏輯 ---
+        function renderCards() {
+            const s = document.getElementById('cardSlider');
+            s.innerHTML = '';
+            if (!cards.length) return document.getElementById('detailsArea').classList.remove('show');
+            cards.forEach((c, i) => {
+                const div = document.createElement('div');
+                div.className = 'cc-card'; div.style.backgroundColor = c.color;
+                div.innerHTML = `<svg style="position:absolute;top:20px;right:20px;width:60px;height:60px;opacity:0.15;fill:white;" viewBox="0 0 24 24"><path d="${c.icon}" /></svg>
+                                 <div class="card-name-on-card">${c.name}</div>`;
+                div.onclick = () => scrollToCard(i);
+                s.appendChild(div);
+            });
+            updateState();
+        }
+
+        function updateState() {
+            const s = document.getElementById('cardSlider');
+            const items = document.querySelectorAll('.cc-card');
+            const center = s.scrollLeft + (s.offsetWidth / 2);
+            let idx = 0, min = Infinity;
+            items.forEach((el, i) => {
+                const d = Math.abs(center - (el.offsetLeft + el.offsetWidth / 2));
+                if (d < min) { min = d; idx = i; }
+                el.classList.remove('active');
+            });
+            if (items[idx]) { items[idx].classList.add('active'); showDetails(idx); }
+        }
+
+        function scrollToCard(i) {
+            const s = document.getElementById('cardSlider');
+            const el = document.querySelectorAll('.cc-card')[i];
+            if(!el) return;
+            s.scrollTo({ left: el.offsetLeft - (s.offsetWidth / 2) + (el.offsetWidth / 2), behavior: 'smooth' });
+        }
+
+        function showDetails(i) {
+            const c = cards[i];
+            document.getElementById('detailCardName').innerText = c.name;
+            document.getElementById('benefitDisplayList').innerHTML = (c.benefits || []).map(b => `
+                <div class="benefit-item"><span class="benefit-title">${parseHighlight(b.title)}</span>${formatRemark(b.remark)}</div>
+            `).join('');
+            document.getElementById('editBtn').onclick = () => openModal(i);
+            document.getElementById('deleteBtn').onclick = () => deleteCard(i);
+            document.getElementById('detailsArea').classList.add('show');
+        }
+
+        // --- 彈窗控制 ---
+        function openModal(idx = -1) {
+            const m = document.getElementById('cardModal');
+            document.getElementById('benefitContainer').innerHTML = '';
+            if (idx > -1) {
+                const c = cards[idx];
+                document.getElementById('modalTitle').innerText = 'Edit Card';
+                document.getElementById('editIndex').value = idx;
+                document.getElementById('cardName').value = c.name;
+                document.getElementById('selectedColor').value = c.color;
+                document.getElementById('selectedIcon').value = c.icon;
+                (c.benefits || []).forEach(b => addBenefitField(b.title, b.remark));
+            } else {
+                document.getElementById('modalTitle').innerText = 'New Card';
+                document.getElementById('cardForm').reset();
+                document.getElementById('editIndex').value = -1;
+                document.getElementById('selectedColor').value = colors[0];
+                document.getElementById('selectedIcon').value = icons[0].path;
+                addBenefitField();
+            }
+            updateSelectors(); m.style.display = 'flex';
+        }
+
+        function updateSelectors() {
+            const currColor = document.getElementById('selectedColor').value;
+            const currIcon = document.getElementById('selectedIcon').value;
+            document.querySelectorAll('.color-option').forEach(el => {
+                el.classList.toggle('active', rgbToHex(el.style.backgroundColor).toUpperCase() === currColor.toUpperCase());
+            });
+            document.querySelectorAll('.icon-option').forEach(el => {
+                const path = el.querySelector('path').getAttribute('d');
+                el.classList.toggle('active', path === currIcon);
+            });
+        }
+
+        function addBenefitField(t = '', r = '') {
+            const d = document.createElement('div');
+            d.className = 'benefit-input-row';
+            d.innerHTML = `<input type="text" class="bt" placeholder="標題" value="${t}" required><textarea class="br" placeholder="使用 **文字** 變粗體，[文字] 變高亮">${r}</textarea><button type="button" class="btn-remove-benefit" onclick="this.parentElement.remove()">✕</button>`;
+            document.getElementById('benefitContainer').appendChild(d);
+        }
+
+        document.getElementById('cardForm').onsubmit = (e) => {
+            e.preventDefault();
+            const idx = parseInt(document.getElementById('editIndex').value);
+            const data = {
+                name: document.getElementById('cardName').value,
+                color: document.getElementById('selectedColor').value,
+                icon: document.getElementById('selectedIcon').value,
+                benefits: Array.from(document.querySelectorAll('.benefit-input-row')).map(r => ({ title: r.querySelector('.bt').value, remark: r.querySelector('.br').value }))
+            };
+            if (idx > -1) cards[idx] = data; else cards.push(data);
+            saveAndRefresh(); closeModal();
+        };
+
+        function deleteCard(i) { if(confirm('Delete?')) { cards.splice(i, 1); saveAndRefresh(); } }
+        function saveAndRefresh() { localStorage.setItem('myCards', JSON.stringify(cards)); renderCards(); }
+        function closeModal() { document.getElementById('cardModal').style.display = 'none'; }
+        function rgbToHex(rgb) { 
+            if (!rgb || rgb.startsWith('#')) return rgb;
+            const vals = rgb.match(/\d+/g); 
+            return "#" + vals.slice(0,3).map(x => ("0" + parseInt(x).toString(16)).slice(-2)).join(""); 
+        }
+
+        // --- 同步功能 ---
+        function syncDataMenu() {
+            const choice = prompt("請選擇操作：\n1. 匯出備份 (複製字串)\n2. 匯入還原 (貼上字串)", "1");
+            if (choice === "1") {
+                const dataStr = btoa(encodeURIComponent(JSON.stringify(cards)));
+                const tempInput = document.createElement("textarea");
+                document.body.appendChild(tempInput);
+                tempInput.value = dataStr;
+                tempInput.select();
+                document.execCommand("copy");
+                document.body.removeChild(tempInput);
+                alert("備份字串已複製！");
+            } else if (choice === "2") {
+                const input = prompt("請貼上備份字串：");
+                if (input) {
+                    try {
+                        const decodedData = JSON.parse(decodeURIComponent(atob(input)));
+                        if (Array.isArray(decodedData)) {
+                            cards = decodedData; saveAndRefresh(); alert("還原成功！");
+                        } else { throw new Error(); }
+                    } catch (e) { alert("無效字串。"); }
+                }
+            }
+        }
+
+        document.getElementById('cardSlider').onscroll = () => { clearTimeout(window.st); window.st = setTimeout(updateState, 100); };
+        window.onclick = (e) => { if(e.target.className === 'modal') closeModal(); }
+        initSelectors(); renderCards();
+    </script>
+</body>
+</html>
