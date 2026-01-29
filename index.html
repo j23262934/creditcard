@@ -16,7 +16,7 @@
             --add-btn-hover: #607d8b;
             --backup-btn-bg: #eceff1;
             --backup-btn-text: #607d8b;
-            --card-radius: 20px;         
+            --card-radius: 15px;         
             --item-radius: 16px;         
         }
 
@@ -37,9 +37,17 @@
             flex: 0 0 260px; height: 165px; border-radius: var(--card-radius); position: relative; scroll-snap-align: center;
             box-shadow: 0 12px 30px rgba(0,0,0,0.06); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             cursor: pointer; overflow: hidden; color: white; display: flex; flex-direction: column; justify-content: flex-end; padding: 22px;
+            background-size: cover; background-position: center;
         }
+        /* 當有圖片時的暗色覆蓋層，讓文字更明顯 */
+        .cc-card.has-img::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(0deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 60%);
+            z-index: 0;
+        }
+
         .cc-card:not(.active) { transform: scale(0.85); opacity: 0.5; filter: blur(1px); }
-        .card-name-on-card { position: relative; z-index: 1; font-weight: 600; font-size: 18px; }
+        .card-name-on-card { position: relative; z-index: 1; font-weight: 600; font-size: 18px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
 
         /* 詳細內容 */
         .details-container { width: 100%; max-width: 450px; padding: 0 25px 50px 25px; opacity: 0; transform: translateY(20px); transition: 0.4s ease; }
@@ -50,7 +58,7 @@
         .benefit-item { background: white; padding: 20px; border-radius: var(--item-radius); margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f5f5f5; }
         .benefit-title { display: block; font-weight: 600; margin-bottom: 8px; font-size: 15px; }
         .highlight { color: #546e7a; font-weight: 700; background: #eceff1; padding: 0 4px; border-radius: 4px; }
-        strong { font-weight: 700; color: #263238; } /* 粗體文字顏色稍深一點 */
+        strong { font-weight: 700; color: #263238; }
 
         .remark-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
         .remark-table td { border: 1px solid #f0f0f0; padding: 8px; color: var(--secondary-text); }
@@ -117,14 +125,24 @@
                 <input type="hidden" id="editIndex" value="-1">
                 <input type="hidden" id="selectedColor" value="#A8B69F">
                 <input type="hidden" id="selectedIcon" value="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z">
+                
                 <div class="form-group"><label>卡片名稱 / 銀行</label><input type="text" id="cardName" required></div>
-                <div class="form-group"><label>選擇顏色</label><div class="selector-container" id="colorPicker"></div></div>
-                <div class="form-group"><label>選擇圖示</label><div class="selector-container" id="iconPicker"></div></div>
+                
+                <!-- 新增圖片連結欄位 -->
+                <div class="form-group">
+                    <label>卡片封面圖片 (URL 連結，若無則顯示純色)</label>
+                    <input type="url" id="cardImage" placeholder="https://example.com/card-image.png">
+                </div>
+
+                <div class="form-group"><label>選擇純色底色 (若無圖片時使用)</label><div class="selector-container" id="colorPicker"></div></div>
+                <div class="form-group"><label>選擇圖示 (若無圖片時使用)</label><div class="selector-container" id="iconPicker"></div></div>
+                
                 <div class="form-group">
                     <label>優惠與備註 (支援 **粗體** 與 [高亮])</label>
                     <div id="benefitContainer"></div>
                     <button type="button" class="btn" style="width:100%; margin-top:10px; font-size:12px; background:#eceff1;" onclick="addBenefitField()">+ 增加項目</button>
                 </div>
+                
                 <button type="submit" class="btn btn-save">儲存卡片</button>
                 <button type="button" class="btn" style="width:100%; background:none; color:#999" onclick="closeModal()">取消</button>
             </form>
@@ -133,7 +151,6 @@
 
     <script>
         const colors = ['#A8B69F', '#E2A9A9', '#9BB7D4', '#B8A9C9', '#DBC1AD', '#9ED2C6'];
-        // 圖示庫 (可以在這裡自由增減)
         const icons = [
             { name: 'Travel', path: 'M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z' },
             { name: 'Shopping', path: 'M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z' },
@@ -172,12 +189,9 @@
             });
         }
 
-        // --- 重點：解析粗體與高亮邏輯 ---
         function parseHighlight(text) {
             if (!text) return '';
-            // 1. 處理粗體 **文字** -> <strong>文字</strong>
             let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            // 2. 處理高亮 [文字] -> <span class="highlight">文字</span>
             formatted = formatted.replace(/\[(.*?)\]/g, '<span class="highlight">$1</span>');
             return formatted;
         }
@@ -199,16 +213,25 @@
             flush(); return html;
         }
 
-        // --- 卡片渲染邏輯 ---
         function renderCards() {
             const s = document.getElementById('cardSlider');
             s.innerHTML = '';
             if (!cards.length) return document.getElementById('detailsArea').classList.remove('show');
             cards.forEach((c, i) => {
                 const div = document.createElement('div');
-                div.className = 'cc-card'; div.style.backgroundColor = c.color;
-                div.innerHTML = `<svg style="position:absolute;top:20px;right:20px;width:60px;height:60px;opacity:0.15;fill:white;" viewBox="0 0 24 24"><path d="${c.icon}" /></svg>
-                                 <div class="card-name-on-card">${c.name}</div>`;
+                div.className = 'cc-card';
+                
+                // 判斷是否使用圖片背景
+                if (c.image && c.image.trim() !== "") {
+                    div.style.backgroundImage = `url('${c.image}')`;
+                    div.classList.add('has-img');
+                    div.innerHTML = `<div class="card-name-on-card">${c.name}</div>`;
+                } else {
+                    div.style.backgroundColor = c.color;
+                    div.innerHTML = `<svg style="position:absolute;top:20px;right:20px;width:60px;height:60px;opacity:0.15;fill:white;" viewBox="0 0 24 24"><path d="${c.icon}" /></svg>
+                                     <div class="card-name-on-card">${c.name}</div>`;
+                }
+                
                 div.onclick = () => scrollToCard(i);
                 s.appendChild(div);
             });
@@ -246,7 +269,6 @@
             document.getElementById('detailsArea').classList.add('show');
         }
 
-        // --- 彈窗控制 ---
         function openModal(idx = -1) {
             const m = document.getElementById('cardModal');
             document.getElementById('benefitContainer').innerHTML = '';
@@ -255,6 +277,7 @@
                 document.getElementById('modalTitle').innerText = 'Edit Card';
                 document.getElementById('editIndex').value = idx;
                 document.getElementById('cardName').value = c.name;
+                document.getElementById('cardImage').value = c.image || ''; // 載入圖片連結
                 document.getElementById('selectedColor').value = c.color;
                 document.getElementById('selectedIcon').value = c.icon;
                 (c.benefits || []).forEach(b => addBenefitField(b.title, b.remark));
@@ -293,6 +316,7 @@
             const idx = parseInt(document.getElementById('editIndex').value);
             const data = {
                 name: document.getElementById('cardName').value,
+                image: document.getElementById('cardImage').value, // 儲存圖片連結
                 color: document.getElementById('selectedColor').value,
                 icon: document.getElementById('selectedIcon').value,
                 benefits: Array.from(document.querySelectorAll('.benefit-input-row')).map(r => ({ title: r.querySelector('.bt').value, remark: r.querySelector('.br').value }))
@@ -310,7 +334,6 @@
             return "#" + vals.slice(0,3).map(x => ("0" + parseInt(x).toString(16)).slice(-2)).join(""); 
         }
 
-        // --- 同步功能 ---
         function syncDataMenu() {
             const choice = prompt("請選擇操作：\n1. 匯出備份 (複製字串)\n2. 匯入還原 (貼上字串)", "1");
             if (choice === "1") {
