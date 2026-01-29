@@ -53,7 +53,9 @@
 
         .details-container { width: 100%; max-width: 450px; padding: 0 25px 50px 25px; opacity: 0; transform: translateY(20px); transition: 0.4s ease; }
         .details-container.show { opacity: 1; transform: translateY(0); }
-        .details-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
+        .details-header { display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px; }
+        .details-title-row { display: flex; justify-content: space-between; align-items: flex-start; width: 100%; }
+        .details-ctrl-row { display: flex; gap: 8px; width: 100%; }
 
         .benefit-item { background: white; padding: 20px; border-radius: var(--item-radius); margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #f5f5f5; }
         .benefit-title { display: block; font-weight: 600; margin-bottom: 8px; font-size: 15px; }
@@ -67,12 +69,16 @@
 
         .plain-remark { font-size: 13px; color: var(--secondary-text); line-height: 1.7; white-space: pre-wrap; margin-bottom: 5px; }
 
-        .btn { cursor: pointer; border: none; border-radius: 12px; padding: 12px 20px; font-size: 14px; font-weight: 600; transition: 0.3s; }
-        .btn-add-action { background-color: var(--add-btn-bg); color: var(--add-btn-text); }
-        .btn-backup { background-color: var(--backup-btn-bg); color: var(--backup-btn-text); }
-        .btn-edit { background: #f5f7f9; color: #607d8b; margin-right: 10px; }
-        .btn-delete { background: #fff1f1; color: #fa5252; }
-        .btn-save { background: var(--add-btn-bg); color: white; width: 100%; margin-top: 10px; }
+        .btn { cursor: pointer; border: none; border-radius: 12px; padding: 10px 16px; font-size: 14px; font-weight: 600; transition: 0.3s; display: flex; align-items: center; justify-content: center; }
+        .btn-add-action { background-color: var(--add-btn-bg); color: var(--add-btn-text); padding: 12px 20px; }
+        .btn-backup { background-color: var(--backup-btn-bg); color: var(--backup-btn-text); padding: 12px 20px; }
+        
+        .btn-edit { background: #f5f7f9; color: #607d8b; flex: 2; }
+        .btn-delete { background: #fff1f1; color: #fa5252; flex: 1; }
+        .btn-move-card { background: #eceff1; color: #455a64; flex: 1; font-size: 18px; }
+        .btn-move-card:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        .btn-save { background: var(--add-btn-bg); color: white; width: 100%; margin-top: 10px; padding: 14px; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(38, 50, 56, 0.4); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 100; }
         .modal-content { background: white; padding: 35px; border-radius: 28px; width: 92%; max-width: 450px; max-height: 85vh; overflow-y: auto; }
@@ -83,8 +89,6 @@
         .benefit-input-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 15px; position: relative; border: 1px dashed #cfd8dc; }
         .benefit-ctrls { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; align-items: center; }
         .btn-move, .btn-remove-benefit { background: white; border: 1px solid #eee; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; color: #90a4ae; transition: 0.2s; }
-        .btn-move:hover { background: #eceff1; color: #455a64; }
-        .btn-remove-benefit:hover { background: #fff1f1; color: #fa5252; }
 
         .selector-container { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
         .color-option { width: 34px; height: 34px; border-radius: 10px; cursor: pointer; border: 3px solid transparent; }
@@ -92,7 +96,6 @@
         .icon-option { width: 44px; height: 44px; border-radius: 10px; cursor: pointer; border: 1px solid #eee; display: flex; align-items: center; justify-content: center; background: #fdfdfd; }
         .icon-option svg { fill: #b0bec5; width: 24px; height: 24px; }
         .icon-option.active { border-color: #455a64; background: #eceff1; }
-        .icon-option.active svg { fill: #455a64; }
 
         /* 裁切視窗專用樣式 */
         .crop-area { width: 100%; max-height: 400px; margin-bottom: 20px; overflow: hidden; background: #eee; }
@@ -116,12 +119,17 @@
 
     <div class="details-container" id="detailsArea">
         <div class="details-header">
-            <div>
-                <h3 id="detailCardName" style="font-weight: 700; font-size: 20px;"></h3>
-                <span id="detailCardDate" style="font-size: 12px; color: #383838; font-weight: 500;"></span>
+            <div class="details-title-row">
+                <div>
+                    <h3 id="detailCardName" style="font-weight: 700; font-size: 20px;"></h3>
+                    <span id="detailCardDate" style="font-size: 12px; color: #555555; font-weight: 500;"></span>
+                </div>
             </div>
-            <div style="display: flex;">
-                <button class="btn btn-edit" id="editBtn">編輯</button>
+            <!-- 卡片操作按鈕列 -->
+            <div class="details-ctrl-row">
+                <button class="btn btn-move-card" id="moveLeftBtn" title="向左移">←</button>
+                <button class="btn btn-move-card" id="moveRightBtn" title="向右移">→</button>
+                <button class="btn btn-edit" id="editBtn">編輯資訊</button>
                 <button class="btn btn-delete" id="deleteBtn">刪除</button>
             </div>
         </div>
@@ -150,8 +158,8 @@
                     <input type="url" id="cardImage" placeholder="或是貼上圖片網址 (URL)" style="margin-top:10px;">
                 </div>
 
-                <div class="form-group"><label>或 選擇背景顏色 (若無圖片)</label><div class="selector-container" id="colorPicker"></div></div>
-                <div class="form-group"><label>選擇圖示 (若無圖片)</label><div class="selector-container" id="iconPicker"></div></div>
+                <div class="form-group"><label>或 選擇背景顏色</label><div class="selector-container" id="colorPicker"></div></div>
+                <div class="form-group"><label>選擇圖示</label><div class="selector-container" id="iconPicker"></div></div>
                 <div class="form-group">
                     <label>優惠與備註</label>
                     <div id="benefitContainer"></div>
@@ -167,15 +175,12 @@
     <div id="cropModal" class="modal">
         <div class="modal-content" style="max-width: 500px;">
             <h2>調整圖片位置</h2>
-            <div class="crop-area">
-                <img id="cropImage" src="">
-            </div>
+            <div class="crop-area"><img id="cropImage" src=""></div>
             <button type="button" class="btn btn-save" onclick="applyCrop()">確定裁切</button>
             <button type="button" class="btn" style="width:100%; background:none; color:#999" onclick="closeCropModal()">取消</button>
         </div>
     </div>
 
-    <!-- 引入 Cropper.js JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
     <script>
@@ -191,48 +196,49 @@
 
         let cards = JSON.parse(localStorage.getItem('myCards')) || [];
         let cropper = null;
+        let currentActiveIdx = 0;
 
-        // --- 圖片上傳裁切邏輯 ---
+        // --- 圖片邏輯 ---
         function initCrop(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = (e) => {
                     document.getElementById('cropImage').src = e.target.result;
                     document.getElementById('cropModal').style.display = 'flex';
                     if (cropper) cropper.destroy();
-                    cropper = new Cropper(document.getElementById('cropImage'), {
-                        aspectRatio: 260 / 165,
-                        viewMode: 1,
-                        background: false
-                    });
+                    cropper = new Cropper(document.getElementById('cropImage'), { aspectRatio: 260/165, viewMode: 1 });
                 };
                 reader.readAsDataURL(input.files[0]);
             }
         }
-
         function applyCrop() {
-            const canvas = cropper.getCroppedCanvas({ width: 600 }); // 限制寬度避免 Base64 太大
+            const canvas = cropper.getCroppedCanvas({ width: 600 });
             const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
             document.getElementById('cardImage').value = dataUrl;
             showImgPreview(dataUrl);
             closeCropModal();
         }
-
         function showImgPreview(url) {
-            const box = document.getElementById('imgPreview');
-            if (url) {
-                box.style.backgroundImage = `url('${url}')`;
-                box.style.display = 'block';
-            } else {
-                box.style.display = 'none';
-            }
+            const b = document.getElementById('imgPreview');
+            if(url){ b.style.backgroundImage = `url('${url}')`; b.style.display = 'block'; } else b.style.display = 'none';
         }
+        function closeCropModal() { document.getElementById('cropModal').style.display = 'none'; document.getElementById('fileInput').value = ''; }
 
-        function closeCropModal() {
-            document.getElementById('cropModal').style.display = 'none';
-            document.getElementById('fileInput').value = '';
+        // --- 卡片移動邏輯 ---
+        function moveCard(direction) {
+            const newIdx = currentActiveIdx + direction;
+            if (newIdx < 0 || newIdx >= cards.length) return;
+            
+            // 交換位置
+            [cards[currentActiveIdx], cards[newIdx]] = [cards[newIdx], cards[currentActiveIdx]];
+            
+            // 儲存並更新 UI
+            localStorage.setItem('myCards', JSON.stringify(cards));
+            renderCards();
+            
+            // 重新定位到移動後的卡片
+            setTimeout(() => scrollToCard(newIdx), 50);
         }
-        // --- 結束裁切邏輯 ---
 
         function initSelectors() {
             const cp = document.getElementById('colorPicker');
@@ -262,10 +268,8 @@
 
         function parseHighlight(text) {
             if (!text) return '';
-            let formatted = text.replace(/\|/g, '<br>');
-            formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            formatted = formatted.replace(/\[(.*?)\]/g, '<span class="highlight">$1</span>');
-            return formatted;
+            let f = text.replace(/\|/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\[(.*?)\]/g, '<span class="highlight">$1</span>');
+            return f;
         }
 
         function formatRemark(text) {
@@ -317,6 +321,7 @@
                 if (d < min) { min = d; idx = i; }
                 el.classList.remove('active');
             });
+            currentActiveIdx = idx;
             if (items[idx]) { items[idx].classList.add('active'); showDetails(idx); }
         }
 
@@ -330,13 +335,23 @@
         function showDetails(i) {
             const c = cards[i];
             document.getElementById('detailCardName').innerText = c.name;
-            const dateEl = document.getElementById('detailCardDate');
-            dateEl.innerText = c.expiryDate ? `優惠期限：${c.expiryDate}` : '';
+            document.getElementById('detailCardDate').innerText = c.expiryDate ? `優惠期限：${c.expiryDate}` : '';
             document.getElementById('benefitDisplayList').innerHTML = (c.benefits || []).map(b => `
                 <div class="benefit-item"><span class="benefit-title">${parseHighlight(b.title)}</span>${formatRemark(b.remark)}</div>
             `).join('');
+            
+            // 綁定按鈕事件
             document.getElementById('editBtn').onclick = () => openModal(i);
             document.getElementById('deleteBtn').onclick = () => deleteCard(i);
+            
+            // 移動按鈕邏輯
+            const lBtn = document.getElementById('moveLeftBtn');
+            const rBtn = document.getElementById('moveRightBtn');
+            lBtn.disabled = (i === 0);
+            rBtn.disabled = (i === cards.length - 1);
+            lBtn.onclick = () => moveCard(-1);
+            rBtn.onclick = () => moveCard(1);
+
             document.getElementById('detailsArea').classList.add('show');
         }
 
@@ -383,23 +398,21 @@
             d.className = 'benefit-input-row';
             d.innerHTML = `
                 <div class="benefit-ctrls">
-                    <button type="button" class="btn-move" onclick="moveBenefit(this, -1)">↑</button>
-                    <button type="button" class="btn-move" onclick="moveBenefit(this, 1)">↓</button>
+                    <button type="button" class="btn-move" onclick="moveBenefitItem(this, -1)">↑</button>
+                    <button type="button" class="btn-move" onclick="moveBenefitItem(this, 1)">↓</button>
                     <button type="button" class="btn-remove-benefit" onclick="this.closest('.benefit-input-row').remove()">✕</button>
                 </div>
                 <input type="text" class="bt" placeholder="標題" value="${t}" required>
-                <textarea class="br" placeholder="使用 **粗體**、[高亮]、| 換行符號">${r}</textarea>
+                <textarea class="br" placeholder="備註內容"></textarea>
             `;
+            d.querySelector('.br').value = r;
             document.getElementById('benefitContainer').appendChild(d);
         }
 
-        function moveBenefit(btn, direction) {
+        function moveBenefitItem(btn, direction) {
             const row = btn.closest('.benefit-input-row');
-            if (direction === -1) {
-                if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
-            } else {
-                if (row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row);
-            }
+            if (direction === -1) { if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling); }
+            else { if (row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row); }
         }
 
         document.getElementById('cardForm').onsubmit = (e) => {
@@ -420,11 +433,7 @@
         function deleteCard(i) { if(confirm('Delete?')) { cards.splice(i, 1); saveAndRefresh(); } }
         function saveAndRefresh() { localStorage.setItem('myCards', JSON.stringify(cards)); renderCards(); }
         function closeModal() { document.getElementById('cardModal').style.display = 'none'; }
-        function rgbToHex(rgb) { 
-            if (!rgb || rgb.startsWith('#')) return rgb;
-            const vals = rgb.match(/\d+/g); 
-            return "#" + vals.slice(0,3).map(x => ("0" + parseInt(x).toString(16)).slice(-2)).join(""); 
-        }
+        function rgbToHex(rgb) { if (!rgb || rgb.startsWith('#')) return rgb; const vals = rgb.match(/\d+/g); return "#" + vals.slice(0,3).map(x => ("0" + parseInt(x).toString(16)).slice(-2)).join(""); }
 
         function syncDataMenu() {
             const choice = prompt("1. 匯出備份\n2. 匯入還原", "1");
@@ -447,8 +456,6 @@
             if(e.target.id === 'cardModal') closeModal();
             if(e.target.id === 'cropModal') closeCropModal();
         }
-        
-        // 即時監測網址輸入
         document.getElementById('cardImage').oninput = function() { showImgPreview(this.value); };
 
         initSelectors(); renderCards();
