@@ -17,7 +17,7 @@
             --backup-btn-bg: #eceff1;
             --backup-btn-text: #607d8b;
             --card-radius: 15px;         
-            --item-radius: 15px;         
+            --item-radius: 16px;         
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', 'Noto Sans TC', sans-serif; }
@@ -76,7 +76,6 @@
         label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: #78909c; }
         input, textarea { width: 100%; padding: 14px; border: 1.5px solid #eee; border-radius: 12px; font-size: 14px; background: #fafafa; outline: none; }
         
-        /* 備註編輯區塊與排序按鈕 */
         .benefit-input-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 15px; position: relative; border: 1px dashed #cfd8dc; }
         .benefit-ctrls { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; align-items: center; }
         .btn-move, .btn-remove-benefit { background: white; border: 1px solid #eee; border-radius: 6px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; color: #90a4ae; transition: 0.2s; }
@@ -108,7 +107,7 @@
         <div class="details-header">
             <div>
                 <h3 id="detailCardName" style="font-weight: 700; font-size: 20px;"></h3>
-                <span id="detailCardDate" style="font-size: 12px; color: var(--secondary-text);"></span>
+                <span id="detailCardDate" style="font-size: 12px; color: #727272; font-weight: 500;"></span>
             </div>
             <div style="display: flex;">
                 <button class="btn btn-edit" id="editBtn">編輯</button>
@@ -126,7 +125,12 @@
                 <input type="hidden" id="editIndex" value="-1">
                 <input type="hidden" id="selectedColor" value="#A8B69F">
                 <input type="hidden" id="selectedIcon" value="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z">
+                
                 <div class="form-group"><label>卡片名稱 / 銀行</label><input type="text" id="cardName" required></div>
+                
+                <!-- 新增：優惠截止日期欄位 -->
+                <div class="form-group"><label>優惠截止日期</label><input type="date" id="expiryDate"></div>
+                
                 <div class="form-group"><label>卡片封面圖片 (URL)</label><input type="url" id="cardImage" placeholder="https://..."></div>
                 <div class="form-group"><label>選擇顏色</label><div class="selector-container" id="colorPicker"></div></div>
                 <div class="form-group"><label>選擇圖示</label><div class="selector-container" id="iconPicker"></div></div>
@@ -251,6 +255,15 @@
         function showDetails(i) {
             const c = cards[i];
             document.getElementById('detailCardName').innerText = c.name;
+            
+            // 顯示優惠期限
+            const dateEl = document.getElementById('detailCardDate');
+            if (c.expiryDate) {
+                dateEl.innerText = `優惠期限：${c.expiryDate}`;
+            } else {
+                dateEl.innerText = '';
+            }
+
             document.getElementById('benefitDisplayList').innerHTML = (c.benefits || []).map(b => `
                 <div class="benefit-item"><span class="benefit-title">${parseHighlight(b.title)}</span>${formatRemark(b.remark)}</div>
             `).join('');
@@ -267,6 +280,7 @@
                 document.getElementById('modalTitle').innerText = 'Edit Card';
                 document.getElementById('editIndex').value = idx;
                 document.getElementById('cardName').value = c.name;
+                document.getElementById('expiryDate').value = c.expiryDate || ''; // 載入日期
                 document.getElementById('cardImage').value = c.image || '';
                 document.getElementById('selectedColor').value = c.color;
                 document.getElementById('selectedIcon').value = c.icon;
@@ -277,6 +291,7 @@
                 document.getElementById('editIndex').value = -1;
                 document.getElementById('selectedColor').value = colors[0];
                 document.getElementById('selectedIcon').value = icons[0].path;
+                document.getElementById('expiryDate').value = ''; // 重置日期
                 addBenefitField();
             }
             updateSelectors(); m.style.display = 'flex';
@@ -294,17 +309,12 @@
             });
         }
 
-        // 新增/調整備註項目的位置邏輯
         function moveBenefit(btn, direction) {
             const row = btn.closest('.benefit-input-row');
-            if (direction === -1) { // 上移
-                if (row.previousElementSibling) {
-                    row.parentNode.insertBefore(row, row.previousElementSibling);
-                }
-            } else { // 下移
-                if (row.nextElementSibling) {
-                    row.parentNode.insertBefore(row.nextElementSibling, row);
-                }
+            if (direction === -1) {
+                if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
+            } else {
+                if (row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row);
             }
         }
 
@@ -328,6 +338,7 @@
             const idx = parseInt(document.getElementById('editIndex').value);
             const data = {
                 name: document.getElementById('cardName').value,
+                expiryDate: document.getElementById('expiryDate').value, // 儲存日期
                 image: document.getElementById('cardImage').value,
                 color: document.getElementById('selectedColor').value,
                 icon: document.getElementById('selectedIcon').value,
