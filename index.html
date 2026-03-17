@@ -1,3 +1,5 @@
+--- START OF FILE Paste March 17, 2026 - 11:28AM ---
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -9,6 +11,14 @@
     <!-- 引入 Cropper.js CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     
+    <link rel="manifest" href="manifest.json">
+
+    <script>
+        if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+
     <style>
         :root {
             --bg-color: #fcfcfc;
@@ -435,19 +445,52 @@
         function closeModal() { document.getElementById('cardModal').style.display = 'none'; }
         function rgbToHex(rgb) { if (!rgb || rgb.startsWith('#')) return rgb; const vals = rgb.match(/\d+/g); return "#" + vals.slice(0,3).map(x => ("0" + parseInt(x).toString(16)).slice(-2)).join(""); }
 
+        // --- 修改後的同步邏輯 (檔案下載/上傳) ---
         function syncDataMenu() {
-            const choice = prompt("1. 匯出備份\n2. 匯入還原", "1");
+            const choice = prompt("1. 匯出備份 (下載檔案)\n2. 匯入還原 (上傳檔案)", "1");
+            
             if (choice === "1") {
-                const dataStr = btoa(encodeURIComponent(JSON.stringify(cards)));
-                navigator.clipboard.writeText(dataStr).then(() => alert("備份字串已複製！"));
+                // 匯出邏輯：建立 JSON 檔案並下載
+                const dataStr = JSON.stringify(cards, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+                a.href = url;
+                a.download = `wallet_backup_${date}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             } else if (choice === "2") {
-                const input = prompt("請貼上備份字串：");
-                if (input) {
-                    try {
-                        const decodedData = JSON.parse(decodeURIComponent(atob(input)));
-                        if (Array.isArray(decodedData)) { cards = decodedData; saveAndRefresh(); alert("還原成功！"); }
-                    } catch (e) { alert("無效字串。"); }
-                }
+                // 匯入邏輯：觸發檔案選取視窗
+                const fileInput = document.createElement("input");
+                fileInput.type = "file";
+                fileInput.accept = ".json";
+                fileInput.onchange = e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = event => {
+                        try {
+                            const decodedData = JSON.parse(event.target.result);
+                            if (Array.isArray(decodedData)) {
+                                if (confirm("確定要匯入嗎？這將覆蓋現有的卡片資料。")) {
+                                    cards = decodedData;
+                                    saveAndRefresh();
+                                    alert("還原成功！");
+                                }
+                            } else {
+                                alert("檔案格式不正確，請使用本程式產生的備份檔。");
+                            }
+                        } catch (err) {
+                            alert("讀取檔案失敗或檔案內容非有效 JSON。");
+                        }
+                    };
+                    reader.readAsText(file);
+                };
+                fileInput.click();
             }
         }
 
